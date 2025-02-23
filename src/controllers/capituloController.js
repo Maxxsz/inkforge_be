@@ -19,15 +19,16 @@ const criarCapitulo = async (req, res) => {
         }
 
         const { rows: capituloRows } = await pool.query(
-            `INSERT INTO Capitulo (uuid_livro, titulo, conteudo) 
-            VALUES ($1, $2, $3) 
-            RETURNING uuid_capitulo`,
+            `INSERT INTO Capitulo (uuid_livro, titulo, conteudo, finalizado) 
+            VALUES ($1, $2, $3, 'não') 
+            RETURNING uuid_capitulo, finalizado`,
             [uuid_livro, titulo, conteudo]
         );
 
         res.status(201).json({
             mensagem: "Capítulo criado com sucesso.",
             uuid_capitulo: capituloRows[0].uuid_capitulo,
+            finalizado: capituloRows[0].finalizado,
         });
     } catch (error) {
         console.error("Erro ao criar capítulo:", error.message);
@@ -68,10 +69,10 @@ const listarCapitulos = async (req, res) => {
 
     try {
         const { rows } = await pool.query(
-            `SELECT uuid_capitulo, titulo, conteudo, data_criacao, data_atualizado 
-       FROM Capitulo 
-       WHERE uuid_livro = $1 
-       ORDER BY data_criacao ASC`,
+            `SELECT uuid_capitulo, titulo, conteudo, finalizado, data_criacao, data_atualizado 
+             FROM Capitulo 
+             WHERE uuid_livro = $1 
+             ORDER BY data_criacao ASC`,
             [uuid_livro]
         );
 
@@ -121,15 +122,15 @@ const listarUltimosCapitulosLidos = async (req, res) => {
 
 const editarCapitulo = async (req, res) => {
     const { uuid_capitulo } = req.params;
-    const { titulo, conteudo } = req.body;
+    const { titulo, conteudo, finalizado } = req.body;
     const uuid_usuario = req.usuario.uuid_usuario;
 
     try {
         const { rows } = await pool.query(
             `SELECT c.uuid_capitulo 
-       FROM Capitulo c
-       INNER JOIN Livro l ON c.uuid_livro = l.uuid_livro
-       WHERE c.uuid_capitulo = $1 AND l.uuid_usuario = $2`,
+             FROM Capitulo c
+             INNER JOIN Livro l ON c.uuid_livro = l.uuid_livro
+             WHERE c.uuid_capitulo = $1 AND l.uuid_usuario = $2`,
             [uuid_capitulo, uuid_usuario]
         );
 
@@ -141,9 +142,9 @@ const editarCapitulo = async (req, res) => {
 
         await pool.query(
             `UPDATE Capitulo 
-       SET titulo = $1, conteudo = $2, data_atualizado = NOW() 
-       WHERE uuid_capitulo = $3`,
-            [titulo, conteudo, uuid_capitulo]
+             SET titulo = $1, conteudo = $2, finalizado = $3, data_atualizado = NOW() 
+             WHERE uuid_capitulo = $4`,
+            [titulo, conteudo, finalizado ? "sim" : "não", uuid_capitulo]
         );
 
         res.json({ mensagem: "Capítulo atualizado com sucesso." });
